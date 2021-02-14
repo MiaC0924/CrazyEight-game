@@ -2,7 +2,8 @@
 
 Wenwen Chen 100882644
 
-###Introduction
+------
+Introduction
 
 The following code contains a 3-4 players CrazyEight game
 
@@ -22,7 +23,8 @@ And, the scores for the current round are added to those of the previous rounds.
 The game is over once any of the players reaches 100 points. 
 The winner is the player with the lowest score and the game is over.
 
-###Testing
+------
+Testing
 Junit tests to check the game functionality use TDD approach
 Cucumber tests are used in a BDD approach to test the game on three levels:
   1) Scoring and playing a single round
@@ -32,12 +34,14 @@ Cucumber tests are used in a BDD approach to test the game on three levels:
 Import the game through eclipse / intelliJ by connecting it to the Git repository using the url.
 You can also download the code from Github and import the project into eclipse / intelliJ.
 
-###How to run the code through eclipse:
+------
+How to run the code through eclipse:
 1) Start the GameServer 
 2) Start the Player (add four players)
 3) Game starts playing with player 1 and change to next player every round
 
-###How to run the Cucumber tests:
+------
+How to run the Cucumber tests:
   1) Start the server for testing - Server four three times:
     a) 1 player and port 3000 - to test ending a game
     b) 1 player and port 3001 - to test starting a game

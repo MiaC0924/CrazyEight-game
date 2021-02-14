@@ -1,9 +1,10 @@
 package com.Mia;
 
+import java.io.Serializable;
 import java.lang.Math;
 import java.util.ArrayList;
 
-public class CardDeck {
+public class CardDeck implements Serializable {
     public ArrayList<Card> cards;
 
     /** Constructor - for server */
@@ -35,8 +36,11 @@ public class CardDeck {
 
     /**constructor with limited number of cards - for player*/
     public CardDeck(int n){
-        cards = new ArrayList<Card>(n);
+        cards = new ArrayList<Card>();
     }
+
+    /** Getter and Setter */
+    public int getSize(){ return cards.size(); }
 
     /**
      * methods for players' decks
@@ -60,14 +64,10 @@ public class CardDeck {
      * */
     //take the top card of the deck
     public Card takeCardOnTop(){
-        if(!isEmpty())  return null;
-        return cards.get(cards.size()-1);
-    }
-
-    //check if the deck is empty
-    public boolean isEmpty(){
-        if(cards.size() == 0 || cards == null) return true;
-        return false;
+        if(cards.size() == 0 || cards == null) return null;
+        Card temp = cards.get(cards.size()-1);
+        cards.remove(cards.size()-1);
+        return temp;
     }
 
     //make sure the top card of deck is not 8

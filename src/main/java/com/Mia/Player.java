@@ -7,239 +7,143 @@ import java.io.Serializable;
 import java.net.Socket;
 import java.util.Scanner;
 
-/**
- * HERE IS A CLASS FOR PLAYER
- * most code refer to the given example yahtzeeGame
- * made some adjustments to meet the assignment requirements
- */
-
 public class Player implements Serializable {
-
     private static final long serialVersionUID = 1L;
-    public String name;
+    static  Client clientConnection;
 
     int playerId = 0;
+    int winSingle = 0;
 
-    Game game = new Game();
-    private int[] scoreSheet = new int[15];
+    private String   name;
+    private int      playerScore = 0;
+    private CardDeck handCards;
 
-    static Client clientConnection;
+    //constructor
+    public Player(String n){
+        name      = n;
+        handCards = new CardDeck(5);
+    }
 
-    Player[] players = new Player[4];
+    //getter
+    public Player   getPlayer()      {return this;}
+    public String   getName()        {return name;}
+    public int      getPlayerScore() {return playerScore;}
+    public CardDeck getHandCards()   {return handCards;}
+    public int      getNumOfCards()  {return handCards.getSize();}
 
+    //take card 拿牌
+    public void takeCard(Card c){
+        handCards.addCard(c);
+    }
 
-    /*
-     * play a round of the game
-     */
-    public int[] playRound(int[] dieRoll) {
+    //play a card from hand 出牌 - 考虑了是否可以出牌，是整个出牌环节，包括输入读取
+    public Card playCard(Card face) {
         Scanner myObj = new Scanner(System.in);
-        int count = 0; // reroll 3 times
-        int stop = 0;
+        boolean valid = false;
+        int selection = -1;
 
-        game.printDieRoll(dieRoll);
-        while (stop == 0) {
-            System.out.println("Select an action: ");
-            if (count < 3) {
-                System.out.println("(1) Choose dice number to roll again");
-                System.out.println("(2) Roll all again");
-            }
-            System.out.println("(3) Score this round");
+        if(canPlay(face)){
+            //ask player to play a card
+            while (valid == false) {
+                System.out.println("Please select a hand card to play: ");
+                System.out.println("- enter '1' to play the first card.");
+                System.out.println("- enter '2' to play the second card, etc.");
 
-            int act = myObj.nextInt();
-            if (act == 1 && count < 3) {
-                System.out.println("Select the die to hold (Ones not held get rerolled): (1,2...) ");
-                String[] die = (myObj.next()).replaceAll("\\s", "").split(",");
-
-                dieRoll = game.reRollNotHeld(dieRoll, die);
-                System.out.println("New Roll: ");
-                game.printDieRoll(dieRoll);
+                selection = myObj.nextInt();
+                valid = validInput(selection, face);
             }
 
-            if (act == 2 && count < 3) {
-                for (int i = 0; i < dieRoll.length; i++) {
-                    dieRoll = game.rerollDice(dieRoll, i);
-
-                }
-                System.out.println("New Roll: ");
-                game.printDieRoll(dieRoll);
-            }
-            count++;
-            if (act == 3) {
-//				set yahtzee bonus if applicable
-                setScoreSheet(13, game.yahtzeeBonus(scoreSheet, dieRoll));
-
-//				get the score for the option requested
-//				check if its been stored already before adding else ask for another number
-                int r = 0;
-                while (r != -1) {
-                    System.out.println("Where do you want to score this round? (1/2/3...)");
-                    r = myObj.nextInt();
-//					add the yahtzee bonus if the roll was yahtzee and yahtzee is full
-                    if (game.isScoreSheetPositionEmpty(scoreSheet, r)) {
-                        setScoreSheet(scoreRound(r, dieRoll));
-                        r = -1;
-                    } else {
-                        System.out.println("The position is filled. Try another number");
-                    }
-                }
-                stop = 1;
-            }
+            return handCards.playSelectedCard(selection);
         }
-        return this.scoreSheet;
 
+        System.out.println("No valid card to be played, please get a card from dealer");
+        return null;
     }
 
-    public int[] scoreRound(int r, int[] dieRoll) {
-        if (r == 7)
-            setScoreSheet(6, game.scoreThreeOfAKind(dieRoll));
-        else if (r == 8)
-            setScoreSheet(7, game.scoreFourOfAKind(dieRoll));
-        else if (r == 9)
-            setScoreSheet(8, game.scoreFullHouse(dieRoll));
-        else if (r == 10)
-            setScoreSheet(9, game.scoreSmallStraight(dieRoll));
-        else if (r == 11)
-            setScoreSheet(10, game.scoreLargeStraight(dieRoll));
-        else if (r == 12)
-            setScoreSheet(11, game.scoreYahtzee(dieRoll));
-        else if (r == 13) {
-            setScoreSheet(12, game.scoreChance(dieRoll));
-        } else
-            setScoreSheet(r - 1, game.scoreUpper(dieRoll, r));
-        return getScoreSheet();
-    }
-
-    public int getScore() {
-        int sc = getLowerScore() + getUpperScore();
-        if (getScoreSheet()[13] >= 0)
-            sc += scoreSheet[13];
-        if (getScoreSheet()[14] >= 0)
-            sc += scoreSheet[14];
-        return sc;
-    }
-
-    /*
-     * loop through the first 6 elements of the score sheet and return
-     */
-    public int getUpperScore() {
-        int count = 0;
-        for (int i = 0; i < 6; i++) {
-            if (this.getScoreSheet()[i] >= 0)
-                count += this.scoreSheet[i];
+    //helper - check if any hand card can be played 检测出牌状态
+    private boolean canPlay(Card face) {
+        for(Card c: handCards.cards) {
+            if (c.match(face)) return true;
         }
-        return count;
+        return false;
     }
 
-    /*
-     * sum of elements 6 - 13 including the yahtzee bonus
-     */
-    public int getLowerScore() {
-        int count = 0;
-        for (int i = 6; i < 13; i++) {
-            if (this.getScoreSheet()[i] >= 0)
-                count += this.scoreSheet[i];
+    //helper - check if the input is valid selection
+    private boolean validInput(int i, Card face){
+        if(i < 1 || i >= handCards.getSize()){
+            System.out.println("The index is invalid");
+            return false;
+        }else if(!handCards.cards.get(i).match(face)){
+            System.out.println("The selected card does not match");
+            return false;
         }
-        return count;
+        return true;
     }
 
-    public int[] getScoreSheet() {
-        return scoreSheet;
+    //calculate score 计算目前总分，无返回值
+    public void calculateScore() {
+        if(handCards.cards == null || handCards.cards.size() == 0) return;
+        for(Card c: handCards.cards){
+            playerScore += c.getScore();
+        }
     }
 
-    public void setScoreSheet(int cat, int score) {
-        this.scoreSheet[cat] = score;
+    //print hand cards 显示手上的卡牌
+    public void printHandCards() {
+        if(this.getNumOfCards() == 0){
+            System.out.println("You have no card on hand.");
+        }
+        System.out.println("----- Your hand cards ----- \n" + "[");
+        for (int i = 0; i < this.getNumOfCards()-1; i++) {
+            System.out.println(this.getHandCards().cards.get(i-2).toString() + ", ");
+        }
+        System.out.println(this.getHandCards().cards.get(this.getNumOfCards()-1).toString() + "]\n");
     }
 
-    public void setScoreSheet(int[] ss) {
-        this.scoreSheet = ss;
-    }
 
-    public Player getPlayer() {
-        return this;
-    }
-
-    /*
+    /**
      * ----------Network Stuff------------
      */
+    public void sendScoreToServer() { clientConnection.sendInt(playerScore);}
+    public void sendPlayerToServer()  { clientConnection.sendPlayer();}
+    public void sendCardToServer(Card c) { clientConnection.sendCard(c);}
+    public void sendWinSignal() { clientConnection.sendInt(winSingle);}
 
-    /*
-     * send the to do to test server
-     */
-    public void sendStringToServer(String str) {
-        clientConnection.sendString(str);
-    }
+    public void receiveWinSignal(){ clientConnection.receiveInt();}
 
-    public void connectToClient() {
-        clientConnection = new Client();
-    }
+    public void connectToClient() { clientConnection = new Client(); }
+    public void connectToClient(int port) { clientConnection = new Client(port);}
 
-    public void connectToClient(int port) {
-        clientConnection = new Client(port);
-    }
-
-    public void initializePlayers() {
-        for (int i = 0; i < 3; i++) {
-            players[i] = new Player(" ");
-        }
-    }
-
-    /*
-     * update turns
-     */
-    public void printPlayerScores(Player[] pl) {
-        // print the score sheets
-
-        if (playerId == 1) {
-            game.printScoreSheet(pl[0]);
-            game.printScoreSheet(pl[1]);
-            game.printScoreSheet(pl[2]);
-        } else if (playerId == 2) {
-            game.printScoreSheet(pl[1]);
-            game.printScoreSheet(pl[0]);
-            game.printScoreSheet(pl[2]);
-        } else {
-            game.printScoreSheet(pl[2]);
-            game.printScoreSheet(pl[0]);
-            game.printScoreSheet(pl[1]);
-        }
-    }
-
+    //TODO: complete method
     public void startGame() {
-        // receive players once for names
-        players = clientConnection.receivePlayer();
-        while (true) {
-            int round = clientConnection.receiveRoundNo();
-            if (round == -1)
-                break;
-            System.out.println("\n \n \n ********Round Number " + round + "********");
-            int[][] pl = clientConnection.receiveScores();
-            for (int i = 0; i < 3; i++) {
-                players[i].setScoreSheet(pl[i]);
-            }
-            printPlayerScores(players);
-            int[] dieRoll = game.rollDice();
-            clientConnection.sendScores(playRound(dieRoll));
+        //winSingle = 0;
+        for (int i = 0; i < 5; i++) {
+            takeCard(clientConnection.receiveCard());
         }
+        printHandCards();
+//        while (true) {
+//            System.out.println("\n \n \n ********Round Number " + round + "********");
+//            int[][] pl = clientConnection.receiveScores();
+//            for (int i = 0; i < 3; i++) {
+//                players[i].setScoreSheet(pl[i]);
+//            }
+//            printPlayerScores(players);
+//            int[] dieRoll = game.rollDice();
+//            clientConnection.sendScores(playRound(dieRoll));
+//        }
 
     }
 
     public Player returnWinner() {
-        try {
-            int[][] pl = clientConnection.receiveScores();
-            for (int i = 0; i < 3; i++) {
-                players[i].setScoreSheet(pl[i]);
-            }
-            printPlayerScores(players);
-            Player win = (Player) clientConnection.dIn.readObject();
-            if (playerId == win.playerId) {
+        try{
+            winSingle = clientConnection.receiveInt();
+            if(winSingle == 1){
                 System.out.println("You win!");
-            } else {
-                System.out.println("The winner is " + win.name);
+            }else {
+                Player win = (Player) clientConnection.dIn.readObject();
+                System.out.println("The winner is " + win.getName() + " with score " + win.getPlayerScore() + "\n");
+                return win;
             }
-
-            System.out.println("Game over!");
-            return win;
-
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {
@@ -248,11 +152,16 @@ public class Player implements Serializable {
         return null;
     }
 
+    /**
+     *  Client class for socket connection
+     *  Please refer to the given example yahtzeeGame
+     * */
     private class Client {
         Socket socket;
         private ObjectInputStream dIn;
         private ObjectOutputStream dOut;
 
+        //Ctor
         public Client() {
             try {
                 socket = new Socket("localhost", 3333);
@@ -286,7 +195,7 @@ public class Player implements Serializable {
         }
 
         /*
-         * function to send the score sheet to the server
+         * functions to send data to the server
          */
         public void sendPlayer() {
             try {
@@ -298,89 +207,48 @@ public class Player implements Serializable {
             }
         }
 
-        /*
-         * function to send strings
-         */
-        public void sendString(String str) {
+        public void sendCard(Card c) {
             try {
-                dOut.writeUTF(str);
+                dOut.writeObject(c);
                 dOut.flush();
             } catch (IOException ex) {
-                System.out.println("Player not sent");
+                System.out.println("Card not sent");
+                ex.printStackTrace();
+            }
+        }
+
+        public void sendInt(int i) {
+            try {
+                dOut.writeInt(i);
+                dOut.flush();
+            } catch (IOException ex) {
+                System.out.println("Data not sent");
                 ex.printStackTrace();
             }
         }
 
         /*
-         * receive scoresheet
+         * functions to receive data from server
          */
-        public void sendScores(int[] scores) {
+        public Card receiveCard() {
             try {
-                for (int i = 0; i < scores.length; i++) {
-                    dOut.writeInt(scores[i]);
-                }
-                dOut.flush();
-
+                Card c = (Card) dIn.readObject();
+                return c;
             } catch (IOException e) {
-                System.out.println("Score sheet not received");
-                e.printStackTrace();
-            }
-        }
-
-        /*
-         * receive scores of other players
-         */
-        public Player[] receivePlayer() {
-            Player[] pl = new Player[3];
-            try {
-                Player p = (Player) dIn.readObject();
-                pl[0] = p;
-                p = (Player) dIn.readObject();
-                pl[1] = p;
-                p = (Player) dIn.readObject();
-                pl[2] = p;
-                return pl;
-
-            } catch (IOException e) {
-                System.out.println("Score sheet not received");
+                System.out.println("Card not received");
                 e.printStackTrace();
             } catch (ClassNotFoundException e) {
-                System.out.println("class not found");
-                e.printStackTrace();
-            }
-            return pl;
-        }
-
-        /*
-         * receive scores of other players
-         */
-        public int[][] receiveScores() {
-            try {
-                int[][] sc = new int[3][15];
-                for (int j = 0; j < 3; j++) {
-                    for (int i = 0; i < 15; i++) {
-                        sc[j][i] = dIn.readInt();
-                    }
-                    System.out.println();
-                }
-
-                return sc;
-            } catch (Exception e) {
-                System.out.println("Score sheet not received");
+                System.out.println("Class not found");
                 e.printStackTrace();
             }
             return null;
         }
 
-        /*
-         * receive scores of other players
-         */
-        public int receiveRoundNo() {
+        public int receiveInt() {
             try {
                 return dIn.readInt();
-
             } catch (IOException e) {
-                System.out.println("Score sheet not received");
+                System.out.println("Data not received");
                 e.printStackTrace();
             }
             return 0;
@@ -388,29 +256,17 @@ public class Player implements Serializable {
 
     }
 
-    /*
-     * ---------Constructor and Main class-----------
-     */
-
-    /*
-     * constructor takes the name of the player and sets the score to 0
-     */
-    public Player(String n) {
-        name = n;
-        for (int i = 0; i < scoreSheet.length; i++) {
-            scoreSheet[i] = -1;
-        }
-    }
-
+    /** main */
     public static void main(String args[]) {
         Scanner myObj = new Scanner(System.in);
+
         System.out.print("What is your name ? ");
         String name = myObj.next();
         Player p = new Player(name);
-        p.initializePlayers();
+
         p.connectToClient();
         p.startGame();
-        p.returnWinner();
+        //p.returnWinner();
         myObj.close();
     }
 }

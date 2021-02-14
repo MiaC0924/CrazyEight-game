@@ -1,6 +1,8 @@
 package com.Mia;
 
-public class Card {
+import java.io.Serializable;
+
+public class Card implements Serializable {
     //data member
     private String suit;
     private int rank;
@@ -27,7 +29,7 @@ public class Card {
     }
 
     //show the card as string
-    public String showCard(){
+    public String toString(){
         if(rank == 11){
             return "J" + suit;
         }else if(rank == 12){
@@ -48,5 +50,11 @@ public class Card {
             return 50;
         }
         return rank;
+    }
+
+    public boolean match(Card face){
+        if (suit == face.getSuit() || rank == face.getRank() || rank == 8)
+            return true;
+        return false;
     }
 }

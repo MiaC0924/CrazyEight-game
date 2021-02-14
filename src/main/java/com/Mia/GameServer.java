@@ -7,38 +7,32 @@ import java.io.Serializable;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-/**
- * HERE IS A CLASS FOR GAME SERVER
- * most code refer to the given example yahtzeeGame
- * made some adjustments to meet the assignment requirements
- */
-
 public class GameServer implements Serializable {
-
     private static final long serialVersionUID = 1L;
-    private int turnsMade;
-    private int maxTurns;
 
-    Server[] playerServer = new Server[4];
+    Server[] servers = new Server[4];
     Player[] players = new Player[4];
+    int[]    winSingle = new int[players.length];
 
     ServerSocket ss;
 
-    Game game = new Game();
-    int numPlayers;
+    int  highestScore;
+    int  numPlayers;
+    Card faceCard;
+    Game game;
 
-    public static void main(String args[]) throws Exception {
-        GameServer sr = new GameServer();
-
-        sr.acceptConnections();
-        sr.gameLoop();
-    }
-
+    //Constructor
     public GameServer() {
-        System.out.println("Starting game server");
+        game = new Game();
         numPlayers = 0;
-        turnsMade = 0;
-        maxTurns = 4;
+        highestScore = 0;
+
+        for (int i = 0; i < winSingle.length; i++) {
+            winSingle[i] = 0;
+        }
+
+        System.out.println("Starting game server");
+
         // initialize the players list with new players
         for (int i = 0; i < players.length; i++) {
             players[i] = new Player(" ");
@@ -49,16 +43,16 @@ public class GameServer implements Serializable {
         } catch (IOException ex) {
             System.out.println("Server Failed to open");
         }
-
     }
 
-    /*
+    /**
      * -----------Networking stuff ----------
+     * refer to the given example yahtzeeGame
      */
     public void acceptConnections() throws ClassNotFoundException {
         try {
             System.out.println("Waiting for players...");
-            while (numPlayers < 3) {
+            while (numPlayers < 4) {
                 Socket s = ss.accept();
                 numPlayers++;
 
@@ -70,81 +64,52 @@ public class GameServer implements Serializable {
 
                 // get the player name
                 Player in = (Player) server.dIn.readObject();
-                System.out.println("Player " + server.playerId + " ~ " + in.name + " ~ has joined");
+                System.out.println("Player " + server.playerId + " ~ " + in.getName() + " ~ has joined");
                 // add the player to the player list
                 players[server.playerId - 1] = in;
-                playerServer[numPlayers - 1] = server;
+                servers[numPlayers - 1] = server;
             }
-            System.out.println("Three players have joined the game");
+            System.out.println("Four players have joined the game");
 
             // start the server threads
-            for (int i = 0; i < playerServer.length; i++) {
-                Thread t = new Thread(playerServer[i]);
+            for (int i = 0; i < servers.length; i++) {
+                Thread t = new Thread(servers[i]);
                 t.start();
             }
             // start their threads
         } catch (IOException ex) {
-            System.out.println("Could not connect 3 players");
+            System.out.println("Could not connect 4 players");
         }
     }
 
+    //TODO: finish this method
     public void gameLoop() {
-        try {
-            playerServer[0].sendPlayers(players);
-            playerServer[1].sendPlayers(players);
-            playerServer[2].sendPlayers(players);
-            playerServer[3].sendPlayers(players);
-
-            while (turnsMade < maxTurns) {
-
-                turnsMade++;
-
-                // send the round number
-                System.out.println("*****************************************");
-                System.out.println("Round number " + turnsMade);
-                playerServer[0].sendTurnNo(turnsMade);
-                playerServer[0].sendScores(players);
-                players[0].setScoreSheet(playerServer[0].receiveScores());
-                System.out.println("Player 1 completed turn and their score is " + players[0].getScore());
-
-                playerServer[1].sendTurnNo(turnsMade);
-                playerServer[1].sendScores(players);
-                players[1].setScoreSheet(playerServer[1].receiveScores());
-                System.out.println("Player 2 completed turn and their score is " + players[1].getScore());
-
-                playerServer[2].sendTurnNo(turnsMade);
-                playerServer[2].sendScores(players);
-                players[2].setScoreSheet(playerServer[2].receiveScores());
-                System.out.println("Player 3 completed turn and their score is " + players[2].getScore());
-
+        faceCard = game.dealCard();
+        for (int i = 0; i < 5; i++) {
+            for (int j = 0; j < players.length; j++) {
+                servers[j].sendCard(game.dealCard());
             }
-            // add the upper bonus
-            players[0].setScoreSheet(14, game.upperBonus(players[0].getUpperScore()));
-            players[1].setScoreSheet(14, game.upperBonus(players[1].getUpperScore()));
-            players[2].setScoreSheet(14, game.upperBonus(players[2].getUpperScore()));
-
-            playerServer[0].sendTurnNo(-1);
-            playerServer[1].sendTurnNo(-1);
-            playerServer[2].sendTurnNo(-1);
-
-            // send final score sheet after bonus added
-            playerServer[0].sendScores(players);
-            playerServer[1].sendScores(players);
-            playerServer[2].sendScores(players);
-
-            Player p = game.getWinner(players);
-            System.out.println("The winner is " + p.name);
-            for (int i = 0; i < playerServer.length; i++) {
-                playerServer[i].dOut.writeObject(p);
-                playerServer[i].dOut.flush();
-
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
         }
+
+//        try {
+//            while (highestScore < 100) {
+//
+//
+//            }
+//        }
+
+//
+//            }
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
 
     }
 
+    /**
+     * Server Class
+     * refer to sample game
+     * */
     public class Server implements Runnable {
         private Socket socket;
         private ObjectInputStream dIn;
@@ -163,7 +128,7 @@ public class GameServer implements Serializable {
         }
 
         /*
-         * run function for threads --> main body of the thread will start here
+         * run function for threads
          */
         public void run() {
             try {
@@ -179,69 +144,80 @@ public class GameServer implements Serializable {
         }
 
         /*
-         * send the scores to other players
+         * functions to send data to the players
          */
-        public void sendPlayers(Player[] pl) {
+        public void sendCard(Card c) {
             try {
-                for (Player p : pl) {
-                    dOut.writeObject(p);
-                    dOut.flush();
-                }
-
+                dOut.writeObject(c);
+                dOut.flush();
             } catch (IOException ex) {
-                System.out.println("Score sheet not sent");
+                System.out.println("No card sent");
                 ex.printStackTrace();
             }
-
         }
 
-        /*
-         * receive scores of other players
-         */
-        public void sendTurnNo(int r) {
+        public void sendInt(int i) {
             try {
-                dOut.writeInt(r);
+                dOut.writeInt(i);
                 dOut.flush();
-            } catch (Exception e) {
-                System.out.println("Score sheet not received");
-                e.printStackTrace();
+            } catch (IOException ex) {
+                System.out.println("Data not sent");
+                ex.printStackTrace();
             }
         }
 
         /*
-         * receive scores of other players
+         * functions to receive data from players
          */
-        public int[] receiveScores() {
+        public Player receivePlayer() {
             try {
-                int[] sc = new int[15];
-                for (int i = 0; i < 15; i++) {
-                    sc[i] = dIn.readInt();
-                }
-                return sc;
-            } catch (Exception e) {
-                System.out.println("Score sheet not received");
+                Player p = (Player) dIn.readObject();
+                System.out.println("Receive player " + p.getName());
+                return p;
+            } catch (IOException e) {
+                System.out.println("Player not received");
+                e.printStackTrace();
+            } catch (ClassNotFoundException e) {
+                System.out.println("Class not found");
                 e.printStackTrace();
             }
             return null;
         }
 
-        /*
-         * send scores of other players
-         */
-        public void sendScores(Player[] pl) {
+        public Card receiveCard() {
             try {
-                for (int i = 0; i < pl.length; i++) {
-                    for (int j = 0; j < pl[i].getScoreSheet().length; j++) {
-                        dOut.writeInt(pl[i].getScoreSheet()[j]);
-                    }
-                }
-                dOut.flush();
-            } catch (Exception e) {
-                System.out.println("Score sheet not sent");
+                Card c = (Card) dIn.readObject();
+                System.out.println("Received card " + c.toString() + " from player " + playerId);
+                return c;
+            } catch (IOException e) {
+                System.out.println("Card not received");
+                e.printStackTrace();
+            } catch (ClassNotFoundException e) {
+                System.out.println("Class not found");
                 e.printStackTrace();
             }
+            return null;
         }
 
+        public int receiveInt() {
+            try {
+                return dIn.readInt();
+            } catch (IOException e) {
+                System.out.println("Data not received");
+                e.printStackTrace();
+            }
+            return 0;
+        }
+
+
+    }
+
+    /** main */
+    public static void main(String args[]) throws Exception {
+        GameServer sr = new GameServer();
+
+        sr.acceptConnections();
+        sr.gameLoop();
     }
 
 }
