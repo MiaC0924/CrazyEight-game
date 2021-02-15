@@ -25,28 +25,11 @@ The winner is the player with the lowest score and the game is over.
 
 ------
 Testing
-Junit tests to check the game functionality use TDD approach
-Cucumber tests are used in a BDD approach to test the game on three levels:
-  1) Scoring and playing a single round
-  2) A single player joining and ending the game
-  3) A round played by three players joining the server and getting the scores
 
 Import the game through eclipse / intelliJ by connecting it to the Git repository using the url.
 You can also download the code from Github and import the project into eclipse / intelliJ.
 
-------
-How to run the code through eclipse:
+How to run the code:
 1) Start the GameServer 
-2) Start the Player (add four players)
+2) Start the Player (add 3 or 4 players)
 3) Game starts playing with player 1 and change to next player every round
-
-------
-How to run the Cucumber tests:
-  1) Start the server for testing - Server four three times:
-    a) 1 player and port 3000 - to test ending a game
-    b) 1 player and port 3001 - to test starting a game
-    c) 3 players and port 3002 - to test a full game
-  2) Start 2 iterations of the gameNetwork.feature (This is used to replicated 2/3 players as parallel testing is difficult in    cucumber) 
-  3) Run TestSuite.java as a Junit test
-  
-Note:For Junit tests make sure the code is built with a JUnit dependency

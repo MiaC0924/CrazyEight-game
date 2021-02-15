@@ -53,7 +53,7 @@ public class Card implements Serializable {
     }
 
     public boolean match(Card face){
-        if (suit == face.getSuit() || rank == face.getRank() || rank == 8)
+        if (suit.equals(face.getSuit()) || rank == face.getRank() || rank == 8)
             return true;
         return false;
     }
