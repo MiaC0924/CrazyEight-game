@@ -9,23 +9,48 @@ import java.io.Serializable;
 public class Game implements Serializable {
     private static final long serialVersionUID = 1L;
     private CardDeck tableCards;
-    private int next = 1;
 
+    //ctor
     public Game(){
         tableCards = new CardDeck();
         tableCards.sureBegin();
     }
 
+    //setter - for test case
+    public void setCardDeck(CardDeck cd){tableCards = cd;}
+
     //从牌堆发牌
     public int getNumOfCard() {return tableCards.getSize();}
 
-    public Card dealCard(){
+    public Card takeCard(){
         return tableCards.takeCardOnTop();
     }
 
-    public int nextPlayer() { return next; }
+    public int whosNext(int current, int direction, int numPlayer, Card faceCard){
+        int temp;
+        if (faceCard.getRank() == 12) {
+            temp = (current + direction*2) % numPlayer;
+        } else {
+            temp = (current + direction) % numPlayer;
+        }
 
-    public void reverseDirection() { next = -1; }
+        if(temp < 0) {
+            return numPlayer + temp;
+        }else {
+            return temp;
+        }
+    }
+
+    public boolean ifRoundEnd(Player[] pl){
+        if(tableCards.getSize() > 0) return false;
+
+        int sum = 0;
+        for (int i = 0; i < pl.length; i++) {
+            if(pl[i].canPlay == false) ++sum;
+        }
+        if(tableCards.getSize() == 0 && sum == 4) return true;
+        return false;
+    }
 
     public boolean ifGameEnd(Player[] pl){
         for (int i = 1; i < pl.length; i++) {
@@ -35,16 +60,7 @@ public class Game implements Serializable {
         return false;
     }
 
-    public boolean ifRoundEnd(Player[] pl){
-        int sum = 0;
-        for (int i = 0; i < pl.length; i++) {
-            sum += pl[i].cantPlay;
-        }
-        if(tableCards.getSize() == 0 && sum == 4) return true;
-        return false;
-    }
-
-    //get Winner with lowest score - 找到赢家
+    //get Winner with lowest score - 找到最终赢家
     public Player getWinner(Player[] pl) {
         Player temp = pl[0];
 
@@ -55,8 +71,8 @@ public class Game implements Serializable {
         return temp;
     }
 
-    //prints the score sheet - 打印成绩单
-    public void printResult(Player[] pl) {
+    //prints the final score sheet - 打印最终成绩单
+    public void printFinalResult(Player[] pl) {
         for (int i = 0; i < pl.length; i++) {
             System.out.println("The final score of " + pl[i].getName() + " is " + pl[i].getPlayerScore() + " .\n");
         }

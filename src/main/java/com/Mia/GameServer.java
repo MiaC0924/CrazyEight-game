@@ -13,22 +13,21 @@ public class GameServer implements Serializable {
 
     Server[] servers;
     Player[] players;
-    int[]    winSingle;
+    int[]    winSignal;
 
     ServerSocket ss;
 
-    int  highestScore, numPlayers, round;
+    int  highestScore, numPlayers, round, takeSignal, direction;
     Card faceCard;
     Game game;
 
     //Constructor
     public GameServer() {
         game = new Game();
-        numPlayers = 0;
-        highestScore = 0;
-        round = 1;
+        numPlayers = highestScore = 0;
+        round = direction = 1;
 
-        System.out.println("Starting game server");
+        System.out.println("Starting game server..");
 
         try {
             ss = new ServerSocket(3333);
@@ -40,6 +39,7 @@ public class GameServer implements Serializable {
     /**
      * -----------Networking stuff ----------
      * refer to the given example yahtzeeGame
+     * initial server to match number of players
      */
     public void acceptConnections() throws ClassNotFoundException {
         int num = 0;
@@ -51,10 +51,10 @@ public class GameServer implements Serializable {
 
         servers = new Server[num];
         players = new Player[num];
-        winSingle = new int[players.length];
+        winSignal = new int[players.length];
 
-        for (int i = 0; i < winSingle.length; i++) {
-            winSingle[i] = 0;
+        for (int i = 0; i < winSignal.length; i++) {
+            winSignal[i] = 0;
         }
 
         for (int i = 0; i < players.length; i++) {
@@ -93,128 +93,156 @@ public class GameServer implements Serializable {
         }
     }
 
-    //TODO: finish this method
+    /**
+     * Game Logic of Server
+     */
     public void gameLoop() {
         try {
+            /** Whole game while loop */
             while(true){
-                faceCard = game.dealCard();
-                int next = 1;
+                faceCard = game.takeCard();
 
-                //deal base 5 cards
+                //take send 5 cards to each player at the beginning of the round
                 for (int j = 0; j < 5; j++) {
                     for (int i = 0; i < players.length; i++) {
-                        Card cc = game.dealCard();
+                        Card cc = game.takeCard();
                         servers[i].sendCard(cc);
                         players[i].getHandCards().addCard(cc);
                     }
                 }
 
-                //initial cantPlay signal
+                //initial signals
+                takeSignal = 0; // 0,1,2,4 - # of cards to take
+
                 for (int i = 0; i < players.length; i++) {
-                    players[i].cantPlay = 0;
+                    players[i].canPlay = true;
                 }
 
+                //set the starting player by round
                 int whoPlay = (round % players.length) - 1;
-                int takeSingle = 0;
+                int prvPlay = (whoPlay + 1) % players.length;
 
+                /** Whole round while loop */
                 while(true){
-                    int needCard = 0;
+                    boolean needCard = false;
+                    int getTwo = 0;
 
                     System.out.println();
                     System.out.println("Current face card is " + faceCard.toString());
+                    System.out.println("Current player is player number " + (whoPlay+1) );
 
-                    servers[whoPlay].sendPlaySignal();   //send signal to player
-                    servers[whoPlay].sendCard(faceCard); //send face card to player
+                    /** Single player while loop */
+                    while(true){
+                        servers[whoPlay].sendPlaySignal();   //send signal to player
+                        servers[whoPlay].sendCard(faceCard); //send face card to player
 
-                    //if face card is 2, take 2 card if possible
-                    if(faceCard.getRank() == 2){
-                        if(game.getNumOfCard() >= 2) {
-                            takeSingle = 2;
-                        }else if(game.getNumOfCard() == 1){
-                            takeSingle = 1;
+                        //if face card is 2, take 2 card if possible
+                        if(faceCard.getRank() == 2){
+                            ++getTwo;
+                            if(game.getNumOfCard() >= 4 && getTwo == 2 && players[prvPlay].canPlay){
+                                takeSignal = 4;
+                                getTwo = 0;
+                            }else if(game.getNumOfCard() < 4 && getTwo == 2 && players[prvPlay].canPlay){
+                                System.out.println("Remain " + game.getNumOfCard() + " cards in deck");
+                                takeSignal = game.getNumOfCard();
+                                getTwo = 0;
+                            }else if(game.getNumOfCard() >= 2) {
+                                takeSignal = 2;
+                            }else if(game.getNumOfCard() == 1){
+                                System.out.println("Remain " + game.getNumOfCard() + " cards in deck");
+                                takeSignal = 1;
+                            }
                         }
+
+                        servers[whoPlay].sendInt(takeSignal);  //send signal to player about# of card take
+
+                        //send card after get face card = 2
+                        if(takeSignal == 4) {
+                            for (int i = 0; i < 4; i++) {
+                                servers[whoPlay].sendCard(game.takeCard());
+                            }
+                            takeSignal = 0;
+                        }else if(takeSignal == 3){
+                            for (int i = 0; i < 3; i++) {
+                                servers[whoPlay].sendCard(game.takeCard());
+                            }
+                            takeSignal = 0;
+                        }else if(takeSignal == 2){
+                            for (int i = 0; i < 2; i++) {
+                                servers[whoPlay].sendCard(game.takeCard());
+                            }
+                            takeSignal = 0;
+                        }else if(takeSignal == 1){
+                            servers[whoPlay].sendCard(game.takeCard());
+                            takeSignal = 0;
+                        }
+
+                        //receive card from player, check if player could play
+                        //if no, the receive card = null
+                        //if need card, deal a card to player
+                        needCard = servers[whoPlay].receiveBoolean();
+                        while(needCard == true){
+                            servers[whoPlay].sendCard(game.takeCard());
+                            needCard = servers[whoPlay].receiveBoolean(); //receive one more time see if needed (current attempt+1)
+                        }
+
+                        //receive boolean canPlay = true -> can play
+                        //                        = false -> can not play
+                        //receive Card - the card from player
+                        players[whoPlay].canPlay = servers[whoPlay].receiveBoolean();
+                        Card temp = servers[whoPlay].receiveCard();
+
+                        //if this player can not play a card after 3 attempts
+                        if(temp == null) {
+                            System.out.println("Player " + players[whoPlay].getName() + " can't play card");
+                            break;
+                        }
+
+                        //if this player played a card
+                        if(temp != null) {
+                            System.out.println("Player " + players[whoPlay].getName() + " deals a card " + temp.toString());
+                            faceCard = temp;
+                            break;
+                        }
+
+                        /** end of player round loop */
                     }
-
-                    servers[whoPlay].sendInt(takeSingle);  //send signal to player about# of card take
-
-                    //send card after get face card = 2
-                    if(takeSingle == 2){
-                        servers[whoPlay].sendCard(game.dealCard());
-                        servers[whoPlay].sendCard(game.dealCard());
-                        takeSingle = 0;
-                    }else if(takeSingle == 1){
-                        servers[whoPlay].sendCard(game.dealCard());
-                        takeSingle = 0;
-                    }
-
-                    //receive card from player, check if player could play
-                    //if no, the receive card = null
-                    //if need card, deal a card to player
-                    needCard = servers[whoPlay].receiveInt();
-                    while(needCard == 1){
-                        servers[whoPlay].sendCard(game.dealCard());
-                        needCard = servers[whoPlay].receiveInt(); //receive one more time see if needed (current attempt+1)
-                    }
-
-                    //receive int cantPlay = 0 -> can play
-                    //                     = 1 -> can not play
-                    //receive Card - the card from player
-                    players[whoPlay].cantPlay = servers[whoPlay].receiveInt();
-                    Card temp = servers[whoPlay].receiveCard();
-
-                    //if this player can not play a card after 3 attempts
-                    if(temp == null) {
-                        System.out.println("Player " + players[whoPlay].getName() + " can't play card");
-                    }
-
-                    //if this player played a card
-                    if(temp != null) {
-                        System.out.println("Player " + players[whoPlay].getName() + " deals a card " + temp.toString());
-                        faceCard = temp;
-                    }
-//
-//                    //update current player card deck in server
-//                    players[whoPlay].setHandCards(servers[whoPlay].receiveCardDeck());
 
                     //check if round end by server
+                    boolean endRound;
                     if (game.ifRoundEnd(players)) {
                         System.out.println("Round ended");
                         for (int i = 0; i < players.length; i++) {
-                            servers[i].sendBoolean(true); //send to player.endRound
+                            servers[i].sendBoolean(endRound = true);
                             players[i].setPlayerScore(servers[i].receiveInt());
                         }
                         break;
                     }
-                    servers[whoPlay].sendBoolean(false); //if not end, send false to player
+                    servers[whoPlay].sendBoolean(endRound = false);
 
 
                     //check if round end by player
-                    int endRound = servers[whoPlay].receiveInt(); //1 -> end; 0 -> not end
-                    if(endRound == 1){
+                    endRound = servers[whoPlay].receiveBoolean();
+                    if(endRound){
                         System.out.println("Round ended");
                         players[whoPlay].setPlayerScore(servers[whoPlay].receiveInt());
+
+                        //tell all players the round is ended
+                        for (int i = 0; i < players.length; i++) {
+                            servers[i].sendBoolean(false); //playSignal is false
+                        }
                         break;
                     }
 
-                    //if Round not end, go next player
-                    //below calculate who is the next player
-                    int tempIdx;
-                    if (faceCard.getRank() == 11) {
-                        tempIdx = (whoPlay + next*2) % players.length;
-                    } else if (faceCard.getRank() == 1) {
-                        next = -next;
-                        tempIdx = (whoPlay + next) % players.length;
-                    } else {
-                        tempIdx = (whoPlay + next) % players.length;
-                    }
+                    //if not ended, go next player
+                    if(faceCard.getRank() == 1) direction = -direction;
+                    int next = game.whosNext(whoPlay, direction, players.length, faceCard);
+                    servers[whoPlay].sendInt(next); //tell current player who is the next
+                    servers[whoPlay].sendInt(direction); //tell current play the direction
+                    prvPlay = whoPlay;
+                    whoPlay = next;
 
-                    if(tempIdx < 0) {
-                        whoPlay = players.length + tempIdx;
-                    }else {
-                        whoPlay = tempIdx;
-                    }
-
-                    //end of the inner while loop
+                    /** end of the round while loop */
                 }
 
                 //check if the game is ended
@@ -227,8 +255,12 @@ public class GameServer implements Serializable {
                     }
                     break;
                 }
-                servers[whoPlay].sendBoolean(false);
+
+                //if the game is not ended
+                servers[whoPlay].sendBoolean(false); //send signal NOT END
                 ++round;
+
+                /** end of the game while loop */
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -382,6 +414,16 @@ public class GameServer implements Serializable {
                 e.printStackTrace();
             }
             return 0;
+        }
+
+        public boolean receiveBoolean() {
+            try {
+                return dIn.readBoolean();
+            } catch (IOException e) {
+                System.out.println("Boolean not received");
+                e.printStackTrace();
+            }
+            return false;
         }
 
 
