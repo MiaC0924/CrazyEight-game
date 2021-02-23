@@ -64,7 +64,9 @@ public class CardDeck implements Serializable {
      * */
     //take the top card of the deck
     public Card takeCardOnTop(){
-        if(cards.size() == 0 || cards == null) return null;
+        if(cards.size() == 0 || cards == null)
+            return null;
+
         Card temp = cards.get(cards.size()-1);
         cards.remove(cards.size()-1);
         return temp;

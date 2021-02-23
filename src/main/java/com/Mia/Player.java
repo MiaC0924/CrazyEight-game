@@ -9,15 +9,14 @@ import java.util.Scanner;
 
 public class Player implements Serializable {
     private static final long serialVersionUID = 1L;
-    static  Client clientConnection;
+    static  Client client;
 
     int playerId = 0;
-    int endSingle = 0;
-    int cantPlay = 0;
 
     private String   name;
     private int      playerScore = 0;
     private CardDeck handCards;
+    boolean canPlay, needCard;
 
     //constructor
     public Player(String n){
@@ -25,16 +24,15 @@ public class Player implements Serializable {
         handCards = new CardDeck(5);
     }
 
-    //getter
+    //getters
     public Player   getPlayer()      {return this;}
     public String   getName()        {return name;}
     public int      getPlayerScore() {return playerScore;}
     public CardDeck getHandCards()   {return handCards;}
     public int      getNumOfCards()  {return handCards.getSize();}
     public void     setPlayerScore(int i) {playerScore = i;}
-    public void     setHandCards(CardDeck cd) {handCards = cd;}
 
-    //take card 拿牌
+    //take card 拿一张牌
     public void takeCard(Card c){
         if (c != null) handCards.addCard(c);
     }
@@ -48,10 +46,9 @@ public class Player implements Serializable {
         if(canPlay(face)){
             //ask player to play a card
             while (valid == false) {
-                System.out.println("Please play a hand card: ");
+                System.out.println("You have available cards");
+                System.out.println("Please play a hand card (enter index 1/2/3/...): ");
                 printHandCards();
-                System.out.println("- enter '1' to play the first card.");
-                System.out.println("- enter '2' to play the second card, etc.");
 
                 selection = myObj.nextInt();
                 valid = validInput(selection-1, face);
@@ -60,7 +57,7 @@ public class Player implements Serializable {
             return handCards.playSelectedCard(selection-1);
         }
 
-        System.out.println("No valid card to be played");
+        System.out.println("You don't have valid card to play");
         return null;
     }
 
@@ -108,105 +105,125 @@ public class Player implements Serializable {
     /**
      * ----------Network Stuff------------
      */
-    public void sendScoreToServer() { clientConnection.sendInt(playerScore);}
-    public void sendPlayerToServer()  { clientConnection.sendPlayer();}
-    public void sendCardToServer(Card c) { clientConnection.sendCard(c);}
-    public void sendCardDeckToServer(CardDeck cd) { clientConnection.sendCardDeck(cd);}
-    public void sendInt(int i) { clientConnection.sendInt(i);}
 
-    public boolean receiveBoolean(){ return clientConnection.receiveBoolean();}
-    public boolean receivePlaySignal(){ return clientConnection.receiveBoolean();}
-    public int receiveDealSignal(){ return clientConnection.receiveInt();}
-    public Card receiveCard(){ return clientConnection.receiveCard();}
+    public void connectToClient() { client = new Client(); }
 
-    public void connectToClient() { clientConnection = new Client(); }
-
-    //Game logic for player end
+    /**
+     *  Player Game Logic
+     * */
     public void startGame() {
-        boolean playSingle = false;
-        cantPlay = 0;
+        boolean playSignal = false;
 
+        /** round loop */
         while (true) {
-            //take base 5 cards
+            //take base 5 cards then print on terminal
+            System.out.println("Taking 5 hand cards..");
             for (int i = 0; i < 5; i++) {
-                takeCard(receiveCard());
+                takeCard(client.receiveCard());
             }
             printHandCards();
 
+            /** term loop */
             while (true) {
-                //get single to start playing
-                playSingle = receivePlaySignal();
-                if (playSingle) {
-                    //get face card
-                    Card faceCard = receiveCard();
+                //could add an signal to indicated if the round is ended
 
-                    //if face card is 2, you will receive this
-                    int takeSingle = receiveDealSignal();
-                    if (takeSingle == 2) {
+                playSignal = client.receiveBoolean();
+                if (!playSignal) {
+                    System.out.println("This round is ended!");
+                    break;
+                }
+
+                if (playSignal) {
+                    //get face card
+                    Card faceCard = client.receiveCard();
+
+                    //if face card is 2, next player may take 2 or 4 cards
+                    int takeSignal = client.receiveInt(); //signal to take card
+                    if (takeSignal == 4) {
                         System.out.println();
-                        System.out.println("** Deal two cards");
-                        takeCard(receiveCard());
-                        takeCard(receiveCard());
-                    } else if (takeSingle == 1) {
-                        System.out.println("**Deal a card");
-                        takeCard(receiveCard());
+                        System.out.println("** Face card is [" + faceCard.toString() + "], take four cards");
+                        for (int i = 0; i < 4; i++) {
+                            takeCard(client.receiveCard());
+                        }
+                    } else if (takeSignal == 3) {
+                        System.out.println();
+                        System.out.println("** Face card is [" + faceCard.toString() + "], take cards in deck");
+                        for (int i = 0; i < 3; i++) {
+                            takeCard(client.receiveCard());
+                        }
+                    } else if (takeSignal == 2) {
+                        System.out.println();
+                        System.out.println("** Face card is [" + faceCard.toString() + "], take two cards");
+                        for (int i = 0; i < 2; i++) {
+                            takeCard(client.receiveCard());
+                        }
+                    } else if (takeSignal == 1) {
+                        System.out.println("** Take a card");
+                        takeCard(client.receiveCard());
                     }
 
-                    //check if there's hand card available, max 3 attempt
+                    /** loop for play or take card, max 3 attempt */
                     int attempt = 1;
-                    while (true) {
+                    boolean playerRound = true;
+                    while (playerRound) {
                         System.out.println();
                         System.out.println("It's your turn. Current face card is [" + faceCard.toString() + "]");
 
                         Card temp = playCard(faceCard);
                         if (temp != null) {
-                            cantPlay = 0;  //can play a card
-                            sendInt(0); //server.needCard = 0
-                            sendInt(cantPlay);
-                            sendCardToServer(temp);
+                            client.sendBoolean(needCard = false);
+                            client.sendBoolean(canPlay = true);
+                            client.sendCard(temp);
                             System.out.println("You played [" + temp.toString() +"]\n");
-                            break;
+                            playerRound = false;
                         } else if (temp == null && attempt < 4) {
-                            System.out.println("Get a card from dealer");
-                            sendInt(1); //server.needCard = 1  -> need a card
-                            takeCard(receiveCard());
-                            printHandCards();
+                            System.out.println("Take a card from card deck");
+                            client.sendBoolean(needCard = true);
+                            takeCard(client.receiveCard());
+                            ++attempt;
                         } else {
-                            cantPlay = 1;  //can not play card
-                            sendInt(0); //server.needCard = 0
-                            sendInt(cantPlay);
-                            sendCardToServer(temp);
-                            break;
+                            printHandCards();
+                            client.sendBoolean(needCard = false);
+                            client.sendBoolean(canPlay = false);
+                            client.sendCard(null);
+                            playerRound = false;
                         }
-                        attempt++;
+                        /** play/take loop end */
                     }
                 }
 
-//                sendCardDeckToServer(handCards);
-
                 //check if round end by server
-                boolean endRound = receiveBoolean(); //true -> end; false -> not end
+                boolean endRound = client.receiveBoolean();
                 if(endRound) {
                     calculateScore();
-                    sendScoreToServer(); //calculate the score from current hand cards
+                    client.sendInt(playerScore);
                     break;
                 }
 
                 //check if round end by player
                 if(handCards.getSize() == 0){
-                    sendInt(1); //send to server.endRound
+                    System.out.println("You end this round!");
+                    client.sendBoolean(endRound = true);
                     calculateScore();
-                    sendScoreToServer(); //calculate the current score
+                    client.sendInt(playerScore);
                     break;
                 }
-                sendInt(0); //send to playerEndGame
+                client.sendBoolean(endRound = false);
 
-                //end of inner while loop
+                //if not ended, print who is the next player
+                int next = client.receiveInt() + 1;
+                int direction = client.receiveInt();
+                if(direction == 1) {
+                    System.out.println("Go right. The next player is player number " + next);
+                }else {
+                    System.out.println("Go left. The next player is player number " + next);
+                }
+
+                /**end of term loop*/
             }
 
             //check if the game is ended
-            boolean endGame = false;
-            endGame = receiveBoolean();
+            boolean endGame = client.receiveBoolean();
             if(endGame){
                 Player winner = getPlayer();
                 if(winner.playerId == this.playerId){
@@ -216,6 +233,8 @@ public class Player implements Serializable {
                 }
                 break;
             }
+
+            /** end of game loop */
         }
     }
 
@@ -232,22 +251,6 @@ public class Player implements Serializable {
         public Client() {
             try {
                 socket = new Socket("localhost", 3333);
-                dOut = new ObjectOutputStream(socket.getOutputStream());
-                dIn = new ObjectInputStream(socket.getInputStream());
-
-                playerId = dIn.readInt();
-
-                System.out.println("Connected as " + playerId);
-                sendPlayer();
-
-            } catch (IOException ex) {
-                System.out.println("Client failed to open");
-            }
-        }
-
-        public Client(int portId) {
-            try {
-                socket = new Socket("localhost", portId);
                 dOut = new ObjectOutputStream(socket.getOutputStream());
                 dIn = new ObjectInputStream(socket.getInputStream());
 
@@ -300,6 +303,16 @@ public class Player implements Serializable {
                 dOut.flush();
             } catch (IOException ex) {
                 System.out.println("Data not sent");
+                ex.printStackTrace();
+            }
+        }
+
+        public void sendBoolean(boolean b) {
+            try {
+                dOut.writeBoolean(b);
+                dOut.flush();
+            } catch (IOException ex) {
+                System.out.println("Boolean not sent");
                 ex.printStackTrace();
             }
         }

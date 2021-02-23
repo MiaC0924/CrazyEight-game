@@ -15,8 +15,6 @@ public class Card implements Serializable {
     //getter & setter
     public int    getRank(){return rank;}
     public String getSuit(){return suit;}
-    public void setSuit(String s){suit = s;}
-    public void setRank(int r)   {rank = r;}
 
     public void setCard(Card c){
         suit = c.getSuit();
