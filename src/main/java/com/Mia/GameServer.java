@@ -100,7 +100,11 @@ public class GameServer implements Serializable {
         try {
             /** Whole game while loop */
             while(true){
+                game = new Game();
+
+                boolean endRound;
                 faceCard = game.takeCard();
+                direction = 1;
 
                 //take send 5 cards to each player at the beginning of the round
                 for (int j = 0; j < 5; j++) {
@@ -112,7 +116,7 @@ public class GameServer implements Serializable {
                 }
 
                 //initial signals
-                takeSignal = 0; // 0,1,2,4 - # of cards to take
+                takeSignal = 0; // 0,1,2,3,4 - # of cards to take
 
                 for (int i = 0; i < players.length; i++) {
                     players[i].canPlay = true;
@@ -128,6 +132,7 @@ public class GameServer implements Serializable {
                     int getTwo = 0;
 
                     System.out.println();
+                    System.out.println("\n\n---------- NEW ROUND ----------");
                     System.out.println("Current face card is " + faceCard.toString());
                     System.out.println("Current player is player number " + (whoPlay+1) );
 
@@ -209,28 +214,22 @@ public class GameServer implements Serializable {
                     }
 
                     //check if round end by server
-                    boolean endRound;
-                    if (game.ifRoundEnd(players)) {
-                        System.out.println("Round ended");
-                        for (int i = 0; i < players.length; i++) {
-                            servers[i].sendBoolean(endRound = true);
-                            players[i].setPlayerScore(servers[i].receiveInt());
-                        }
-                        break;
-                    }
-                    servers[whoPlay].sendBoolean(endRound = false);
+
+//                    if (game.ifRoundEnd(players)) {
+//                        System.out.println("Round ended");
+//                        for (int i = 0; i < players.length; i++) {
+//                            servers[i].sendBoolean(endRound = true);
+//                            players[i].setPlayerScore(servers[i].receiveInt());
+//                        }
+//                        break;
+//                    }
+//                    servers[whoPlay].sendBoolean(endRound = false);
 
 
                     //check if round end by player
                     endRound = servers[whoPlay].receiveBoolean();
                     if(endRound){
-                        System.out.println("Round ended");
-                        players[whoPlay].setPlayerScore(servers[whoPlay].receiveInt());
-
-                        //tell all players the round is ended
-                        for (int i = 0; i < players.length; i++) {
-                            servers[i].sendBoolean(false); //playSignal is false
-                        }
+                        System.out.println("Round ended by player number " + whoPlay);
                         break;
                     }
 
@@ -243,6 +242,21 @@ public class GameServer implements Serializable {
                     whoPlay = next;
 
                     /** end of the round while loop */
+                }
+
+                if(endRound){
+                    //tell all players the round is ended
+                    for (int i = 0; i < players.length; i++) {
+                        if (i != whoPlay) {
+                            servers[i].sendBoolean(false); //playSignal is false
+                        }
+                    }
+
+                    for (int i = 0; i < players.length; i++) {
+                        players[i].setPlayerScore(servers[i].receiveInt());
+                        System.out.println("Score of player " + i + " is " + players[i].getPlayerScore());
+                    }
+
                 }
 
                 //check if the game is ended
@@ -432,7 +446,6 @@ public class GameServer implements Serializable {
     /** main */
     public static void main(String args[]) throws Exception {
         GameServer sr = new GameServer();
-
         sr.acceptConnections();
         sr.gameLoop();
     }
