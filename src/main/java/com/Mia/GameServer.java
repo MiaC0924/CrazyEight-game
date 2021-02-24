@@ -138,7 +138,7 @@ public class GameServer implements Serializable {
 
                     /** Single player while loop */
                     while(true){
-                        servers[whoPlay].sendPlaySignal();   //send signal to player
+                        servers[whoPlay].sendBoolean(true);   //send playSignal to player
                         servers[whoPlay].sendCard(faceCard); //send face card to player
 
                         //if face card is 2, take 2 card if possible
@@ -254,7 +254,7 @@ public class GameServer implements Serializable {
 
                     for (int i = 0; i < players.length; i++) {
                         players[i].setPlayerScore(servers[i].receiveInt());
-                        System.out.println("Score of player " + i + " is " + players[i].getPlayerScore());
+                        System.out.println("Score of player " + (i+1) + " is " + players[i].getPlayerScore());
                     }
 
                 }
@@ -264,15 +264,18 @@ public class GameServer implements Serializable {
                     System.out.println("-- Game ended --");
                     Player winner = game.getWinner(players);
                     for (int i = 0; i < players.length; i++) {
-                        servers[i].sendBoolean(true);
+                        servers[i].sendBoolean(true); //send signal endGame = true to player
                         servers[i].sendPlayer(winner);
                     }
                     break;
+                }else{
+                    //if the game is not ended
+                    //servers[whoPlay].sendBoolean(false); //send signal endGame = false to player
+                    for (int i = 0; i < players.length; i++) {
+                        servers[i].sendBoolean(false); //send signal endGame = false to player
+                    }
+                    ++round;
                 }
-
-                //if the game is not ended
-                servers[whoPlay].sendBoolean(false); //send signal NOT END
-                ++round;
 
                 /** end of the game while loop */
             }
@@ -309,7 +312,6 @@ public class GameServer implements Serializable {
             try {
                 while (true) {
                 }
-
             } catch (Exception ex) {
                 {
                     System.out.println("Run failed");
@@ -361,34 +363,9 @@ public class GameServer implements Serializable {
             }
         }
 
-        public void sendPlaySignal() {
-            try {
-                dOut.writeBoolean(true);
-                dOut.flush();
-            } catch (IOException ex) {
-                System.out.println("Play signal not sent");
-                ex.printStackTrace();
-            }
-        }
-
         /*
          * functions to receive data from players
          */
-        public Player receivePlayer() {
-            try {
-                Player p = (Player) dIn.readObject();
-                System.out.println("Receive player " + p.getName());
-                return p;
-            } catch (IOException e) {
-                System.out.println("Player not received");
-                e.printStackTrace();
-            } catch (ClassNotFoundException e) {
-                System.out.println("Class not found");
-                e.printStackTrace();
-            }
-            return null;
-        }
-
         public Card receiveCard() {
             try {
                 Card c = (Card) dIn.readObject();
@@ -396,20 +373,6 @@ public class GameServer implements Serializable {
                     System.out.println("Received card " + c.toString() + " from player " + playerId);
                 }
                 return c;
-            } catch (IOException e) {
-                System.out.println("Card not received");
-                e.printStackTrace();
-            } catch (ClassNotFoundException e) {
-                System.out.println("Class not found");
-                e.printStackTrace();
-            }
-            return null;
-        }
-
-        public CardDeck receiveCardDeck() {
-            try {
-                CardDeck cd = (CardDeck) dIn.readObject();
-                return cd;
             } catch (IOException e) {
                 System.out.println("Card not received");
                 e.printStackTrace();
