@@ -61,6 +61,20 @@ public class Player implements Serializable {
         return null;
     }
 
+    //ask player to select a suit
+    public String selectSuit(){
+        char c;
+        while (true) {
+            System.out.println("Please select a suit (enter S/H/D/C) :");
+            Scanner myObj = new Scanner(System.in);
+            c = myObj.nextLine().charAt(0);
+
+            if (c == 'S' || c == 'H' || c == 'D' || c == 'C')
+                System.out.println("Replace the suit as " + c);
+                return Character. toString(c);
+        }
+    }
+
     //helper - check if any hand card can be played 检测出牌状态
     private boolean canPlay(Card face) {
         for(Card c: handCards.cards) {
@@ -112,11 +126,12 @@ public class Player implements Serializable {
      *  Player Game Logic
      * */
     public void startGame() {
-        boolean playSignal = false;
+        boolean playSignal;
 
         /** round loop */
         while (true) {
             //take base 5 cards then print on terminal
+            System.out.println("\n\n---------- NEW ROUND ----------");
             System.out.println("Taking 5 hand cards..");
             for (int i = 0; i < 5; i++) {
                 takeCard(client.receiveCard());
@@ -128,12 +143,16 @@ public class Player implements Serializable {
                 //could add an signal to indicated if the round is ended
 
                 playSignal = client.receiveBoolean();
-                if (!playSignal) {
+                if (playSignal == false) {
                     System.out.println("This round is ended!");
+                    calculateScore();
+                    System.out.println("Your current score is " + playerScore);
+                    client.sendInt(playerScore);
+                    handCards = new CardDeck(0); //clean handCard
                     break;
                 }
 
-                if (playSignal) {
+                if (playSignal == true) {
                     //get face card
                     Card faceCard = client.receiveCard();
 
@@ -173,8 +192,23 @@ public class Player implements Serializable {
                         if (temp != null) {
                             client.sendBoolean(needCard = false);
                             client.sendBoolean(canPlay = true);
+
+                            if(temp.getRank() == 8){
+                                String suit = selectSuit();
+                                temp.setCard(suit, 8);
+                            }
+
                             client.sendCard(temp);
-                            System.out.println("You played [" + temp.toString() +"]\n");
+                            System.out.println("You played [" + temp.toString() +"]");
+
+                            if(temp.getRank() == 1){
+                                System.out.println("Change direction by playing 'A'.");
+                            }
+
+                            if(temp.getRank() == 12){
+                                System.out.println("Skip one player by playing 'Q'.");
+                            }
+
                             playerRound = false;
                         } else if (temp == null && attempt < 4) {
                             System.out.println("Take a card from card deck");
@@ -192,20 +226,24 @@ public class Player implements Serializable {
                     }
                 }
 
+                boolean endRound;
+
                 //check if round end by server
-                boolean endRound = client.receiveBoolean();
-                if(endRound) {
-                    calculateScore();
-                    client.sendInt(playerScore);
-                    break;
-                }
+//                endRound = client.receiveBoolean();
+//                if(endRound) {
+//                    calculateScore();
+//                    client.sendInt(playerScore);
+//                    break;
+//                }
 
                 //check if round end by player
                 if(handCards.getSize() == 0){
                     System.out.println("You end this round!");
                     client.sendBoolean(endRound = true);
                     calculateScore();
+                    System.out.println("sending score, your current score is " + playerScore);
                     client.sendInt(playerScore);
+                    System.out.println("Finish sending score.\n");
                     break;
                 }
                 client.sendBoolean(endRound = false);
@@ -214,9 +252,9 @@ public class Player implements Serializable {
                 int next = client.receiveInt() + 1;
                 int direction = client.receiveInt();
                 if(direction == 1) {
-                    System.out.println("Go right. The next player is player number " + next);
-                }else {
-                    System.out.println("Go left. The next player is player number " + next);
+                    System.out.println("\nGo left. The next player is player number " + next);
+                } else {
+                    System.out.println("\nGo right. The next player is player number " + next);
                 }
 
                 /**end of term loop*/
