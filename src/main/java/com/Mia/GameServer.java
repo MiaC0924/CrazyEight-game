@@ -124,7 +124,11 @@ public class GameServer implements Serializable {
 
                 //set the starting player by round
                 int whoPlay = (round % players.length) - 1;
+                if (whoPlay < 0) whoPlay += players.length;
                 int prvPlay = (whoPlay + 1) % players.length;
+
+                System.out.println("\n\n---------- NEW ROUND ----------");
+                System.out.println("---------- ROUND " + round + " ----------");
 
                 /** Whole round while loop */
                 while(true){
@@ -132,7 +136,6 @@ public class GameServer implements Serializable {
                     int getTwo = 0;
 
                     System.out.println();
-                    System.out.println("\n\n---------- NEW ROUND ----------");
                     System.out.println("Current face card is " + faceCard.toString());
                     System.out.println("Current player is player number " + (whoPlay+1) );
 

@@ -47,13 +47,14 @@ public class Player implements Serializable {
             //ask player to play a card
             while (valid == false) {
                 System.out.println("You have available cards");
-                System.out.println("Please play a hand card (enter index 1/2/3/...): ");
+                System.out.println("Please play a hand card, enter index 1/2/3/... or enter 0 for not playing a card: ");
                 printHandCards();
 
                 selection = myObj.nextInt();
+                if(selection == 0) return null;
+
                 valid = validInput(selection-1, face);
             }
-
             return handCards.playSelectedCard(selection-1);
         }
 
@@ -85,7 +86,7 @@ public class Player implements Serializable {
 
     //helper - check if the input is valid selection
     private boolean validInput(int i, Card face){
-        if(i < 0 || i >= handCards.getSize()){
+        if(i < -1 || i >= handCards.getSize()){
             System.out.println("The index is invalid");
             return false;
         }else if(!handCards.cards.get(i).match(face)){
