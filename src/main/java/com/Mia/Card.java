@@ -34,8 +34,6 @@ public class Card implements Serializable {
             return "Q" + suit;
         }else if(rank == 13){
             return "K" + suit;
-        }else if(rank == 1){
-            return "A" + suit;
         }
         return rank + suit;
     }

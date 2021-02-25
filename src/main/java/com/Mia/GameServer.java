@@ -124,7 +124,11 @@ public class GameServer implements Serializable {
 
                 //set the starting player by round
                 int whoPlay = (round % players.length) - 1;
+                if (whoPlay < 0) whoPlay += players.length;
                 int prvPlay = (whoPlay + 1) % players.length;
+
+                System.out.println("\n\n---------- NEW ROUND ----------");
+                System.out.println("----------  ROUND " + round + "  ----------");
 
                 /** Whole round while loop */
                 while(true){
@@ -132,7 +136,6 @@ public class GameServer implements Serializable {
                     int getTwo = 0;
 
                     System.out.println();
-                    System.out.println("\n\n---------- NEW ROUND ----------");
                     System.out.println("Current face card is " + faceCard.toString());
                     System.out.println("Current player is player number " + (whoPlay+1) );
 
@@ -229,7 +232,7 @@ public class GameServer implements Serializable {
                     //check if round end by player
                     endRound = servers[whoPlay].receiveBoolean();
                     if(endRound){
-                        System.out.println("Round ended by player number " + whoPlay);
+                        System.out.println("\n**** Round ended by player number " + whoPlay + " ****");
                         break;
                     }
 
@@ -257,19 +260,50 @@ public class GameServer implements Serializable {
                         System.out.println("Score of player " + (i+1) + " is " + players[i].getPlayerScore());
                     }
 
+                    //send winner to who losers
+                    for (int i = 0; i < players.length; i++) {
+                        if (i != whoPlay) {
+                            servers[i].sendInt(whoPlay); //playSignal is false
+                        }
+                    }
+
+                    //send player scores
+                    for (int i = 0; i < players.length; i++) {
+                        servers[i].sendInt(players.length);
+                        for (int j = 0; j < players.length; j++) {
+                            servers[i].sendInt(players[j].getPlayerScore());
+                        }
+                    }
+
                 }
 
                 //check if the game is ended
                 if(game.ifGameEnd(players)) {
-                    System.out.println("-- Game ended --");
-                    Player winner = game.getWinner(players);
+                    System.out.println("\n\n-- Game ended --");
+                    int winner = 100;
+                    int temp = 100;
+                    game.printFinalResult(players);
+
+                    for (int i = 0; i < players.length; i++) {
+                        if(players[i].getPlayerScore() < temp) {
+                            temp = players[i].getPlayerScore();
+                            winner = i;
+                        }
+                    }
+
                     for (int i = 0; i < players.length; i++) {
                         servers[i].sendBoolean(true); //send signal endGame = true to player
-                        servers[i].sendPlayer(winner);
+
+                        if(i == winner){
+                            servers[i].sendBoolean(true); //youWin = true
+                        }else{
+                            servers[i].sendBoolean(false); //youWin = false
+                            servers[i].sendInt(winner);
+                        }
                     }
                     break;
-                }else{
-                    //if the game is not ended
+
+                }else{ //if the game is not ended
                     //servers[whoPlay].sendBoolean(false); //send signal endGame = false to player
                     for (int i = 0; i < players.length; i++) {
                         servers[i].sendBoolean(false); //send signal endGame = false to player

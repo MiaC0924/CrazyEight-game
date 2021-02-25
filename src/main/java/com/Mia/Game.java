@@ -46,17 +46,6 @@ public class Game implements Serializable {
         }
     }
 
-    public boolean ifRoundEnd(Player[] pl){
-        if(tableCards.getSize() > 0) return false;
-
-        int sum = 0;
-        for (int i = 0; i < pl.length; i++) {
-            if(pl[i].canPlay == false) ++sum;
-        }
-        if(tableCards.getSize() == 0 && sum == 4) return true;
-        return false;
-    }
-
     public boolean ifGameEnd(Player[] pl){
         for (int i = 1; i < pl.length; i++) {
             if(pl[i].getPlayerScore() >= 100)
@@ -78,10 +67,10 @@ public class Game implements Serializable {
 
     //prints the final score sheet - 打印最终成绩单
     public void printFinalResult(Player[] pl) {
+        System.out.println();
         for (int i = 0; i < pl.length; i++) {
-            System.out.println("The final score of " + pl[i].getName() + " is " + pl[i].getPlayerScore() + " .\n");
+            System.out.println("The final score of " + pl[i].getName() + " is " + pl[i].getPlayerScore());
         }
         System.out.println("==== PLAYER " + getWinner(pl).getName() + " WIN THE GAME ====\n");
     }
-
 }
