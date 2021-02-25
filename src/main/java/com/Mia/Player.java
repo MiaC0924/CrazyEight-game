@@ -199,57 +199,90 @@ public class Player implements Serializable {
                     /** loop for play or take card, max 3 attempt */
                     int attempt = 1;
                     boolean playerRound = true;
+                    boolean taken = false;
+                    Card lastTake = null;
+
                     while (playerRound) {
                         System.out.println();
                         System.out.println("It's your turn. Current face card is [" + faceCard.toString() + "]");
 
-                        Card temp = playCard(faceCard);
-                        if (temp != null) {
-                            client.sendBoolean(needCard = false);
-                            client.sendBoolean(canPlay = true);
+                        if(attempt == 1){
+                            Card temp = playCard(faceCard);
 
-                            if(temp.getRank() == 8){
-                                String suit = selectSuit();
-                                temp.setCard(suit, 8);
+                            if (temp != null){
+                                client.sendBoolean(needCard = false);
+                                client.sendBoolean(canPlay = true);
+
+                                if(temp.getRank() == 8){
+                                    String suit = selectSuit();
+                                    temp.setCard(suit, 8);
+                                }
+
+                                client.sendCard(temp);
+                                System.out.println("You played [" + temp.toString() +"]");
+
+                                if(temp.getRank() == 1){
+                                    System.out.println("Change direction by playing 'A'.");
+                                }
+
+                                if(temp.getRank() == 12){
+                                    System.out.println("Skip one player by playing 'Q'.");
+                                }
+
+                                playerRound = false;
+                            }else{
+                                System.out.println("Take a card from card deck");
+                                client.sendBoolean(needCard = true);
+                                lastTake = client.receiveCard();
+                                takeCard(lastTake);
+                                ++attempt;
                             }
+                        }else if(attempt > 1 && attempt < 4){
+                            if(lastTake != null && lastTake.match(faceCard)){
+                                printHandCards();
+                                System.out.println("Last taken card [" + lastTake.toString() + "] match face card, must play it.");
+                                client.sendBoolean(needCard = false);
+                                client.sendBoolean(canPlay = true);
 
-                            client.sendCard(temp);
-                            System.out.println("You played [" + temp.toString() +"]");
+                                Card played = handCards.playSelectedCard(handCards.getSize()-1);
 
-                            if(temp.getRank() == 1){
-                                System.out.println("Change direction by playing 'A'.");
+                                if(played.getRank() == 8){
+                                    String suit = selectSuit();
+                                    played.setCard(suit, 8);
+                                }
+
+                                System.out.println("You played [" + played.toString() +"]");
+                                client.sendCard(played);
+
+                                if(played.getRank() == 1){
+                                    System.out.println("Change direction by playing 'A'.");
+                                }
+
+                                if(played.getRank() == 12){
+                                    System.out.println("Skip one player by playing 'Q'.");
+                                }
+
+                                playerRound = false;
+                            }else{
+                                System.out.println("Taken card doesn't match the face card. Take a card from card deck");
+                                client.sendBoolean(needCard = true);
+                                lastTake = client.receiveCard();
+                                takeCard(lastTake);
+                                ++attempt;
                             }
-
-                            if(temp.getRank() == 12){
-                                System.out.println("Skip one player by playing 'Q'.");
-                            }
-
-                            playerRound = false;
-                        } else if (temp == null && attempt < 4) {
-                            System.out.println("Take a card from card deck");
-                            client.sendBoolean(needCard = true);
-                            takeCard(client.receiveCard());
-                            ++attempt;
-                        } else {
+                        }else{
                             printHandCards();
                             client.sendBoolean(needCard = false);
                             client.sendBoolean(canPlay = false);
                             client.sendCard(null);
                             playerRound = false;
                         }
+
                         /** play/take loop end */
                     }
                 }
 
                 boolean endRound;
-
-                //check if round end by server
-//                endRound = client.receiveBoolean();
-//                if(endRound) {
-//                    calculateScore();
-//                    client.sendInt(playerScore);
-//                    break;
-//                }
 
                 //check if round end by player
                 if(handCards.getSize() == 0){

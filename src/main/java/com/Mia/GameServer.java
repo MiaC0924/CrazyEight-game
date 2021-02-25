@@ -216,19 +216,6 @@ public class GameServer implements Serializable {
                         /** end of player round loop */
                     }
 
-                    //check if round end by server
-
-//                    if (game.ifRoundEnd(players)) {
-//                        System.out.println("Round ended");
-//                        for (int i = 0; i < players.length; i++) {
-//                            servers[i].sendBoolean(endRound = true);
-//                            players[i].setPlayerScore(servers[i].receiveInt());
-//                        }
-//                        break;
-//                    }
-//                    servers[whoPlay].sendBoolean(endRound = false);
-
-
                     //check if round end by player
                     endRound = servers[whoPlay].receiveBoolean();
                     if(endRound){
