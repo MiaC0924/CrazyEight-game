@@ -232,7 +232,8 @@ public class GameServer implements Serializable {
                     //check if round end by player
                     endRound = servers[whoPlay].receiveBoolean();
                     if(endRound){
-                        System.out.println("\n**** Round ended by player number " + whoPlay + " ****");
+                        int winner = whoPlay + 1;
+                        System.out.println("\n**** Round ended by player number " + winner + " ****");
                         break;
                     }
 
