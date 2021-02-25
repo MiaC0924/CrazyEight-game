@@ -128,7 +128,7 @@ public class GameServer implements Serializable {
                 int prvPlay = (whoPlay + 1) % players.length;
 
                 System.out.println("\n\n---------- NEW ROUND ----------");
-                System.out.println("---------- ROUND " + round + " ----------");
+                System.out.println("----------  ROUND " + round + "  ----------");
 
                 /** Whole round while loop */
                 while(true){
@@ -232,7 +232,7 @@ public class GameServer implements Serializable {
                     //check if round end by player
                     endRound = servers[whoPlay].receiveBoolean();
                     if(endRound){
-                        System.out.println("Round ended by player number " + whoPlay);
+                        System.out.println("\n**** Round ended by player number " + whoPlay + " ****");
                         break;
                     }
 
@@ -260,12 +260,29 @@ public class GameServer implements Serializable {
                         System.out.println("Score of player " + (i+1) + " is " + players[i].getPlayerScore());
                     }
 
+                    //send winner to who losers
+                    for (int i = 0; i < players.length; i++) {
+                        if (i != whoPlay) {
+                            servers[i].sendInt(whoPlay); //playSignal is false
+                        }
+                    }
+
+                    //send player scores
+                    for (int i = 0; i < players.length; i++) {
+                        servers[i].sendInt(players.length);
+                        for (int j = 0; j < players.length; j++) {
+                            servers[i].sendInt(players[j].getPlayerScore());
+                        }
+                    }
+
                 }
 
                 //check if the game is ended
                 if(game.ifGameEnd(players)) {
-                    System.out.println("-- Game ended --");
+                    System.out.println("\n\n-- Game ended --");
                     Player winner = game.getWinner(players);
+                    game.printFinalResult(players);
+
                     for (int i = 0; i < players.length; i++) {
                         servers[i].sendBoolean(true); //send signal endGame = true to player
                         servers[i].sendPlayer(winner);

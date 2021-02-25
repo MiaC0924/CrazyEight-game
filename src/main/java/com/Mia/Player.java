@@ -132,7 +132,7 @@ public class Player implements Serializable {
         /** round loop */
         while (true) {
             //take base 5 cards then print on terminal
-            System.out.println("\n\n---------- NEW ROUND ----------");
+            System.out.println("\n\n-------------------- NEW ROUND --------------------");
             System.out.println("Taking 5 hand cards..");
             for (int i = 0; i < 5; i++) {
                 takeCard(client.receiveCard());
@@ -145,10 +145,23 @@ public class Player implements Serializable {
 
                 playSignal = client.receiveBoolean();
                 if (playSignal == false) {
-                    System.out.println("This round is ended!");
+                    System.out.println("\n**** This round is ended! ****");
+
+                    //calculate and send score to server
                     calculateScore();
-                    System.out.println("Your current score is " + playerScore);
                     client.sendInt(playerScore);
+
+                    //receive winner
+                    int winner = client.receiveInt() + 1;
+                    System.out.println("Winner is player number" + winner + "\n");
+
+                    //receive and print scores
+                    int numPlayer = client.receiveInt();
+                    for (int i = 0; i < numPlayer; i++) {
+                        int currentPlayerScore = client.receiveInt();
+                        System.out.println("Score of player " + (i+1) + " is " + currentPlayerScore);
+                    }
+
                     handCards = new CardDeck(0); //clean handCard
                     break;
                 }
@@ -239,12 +252,22 @@ public class Player implements Serializable {
 
                 //check if round end by player
                 if(handCards.getSize() == 0){
-                    System.out.println("You end this round!");
+                    System.out.println("\n**** You end this round! ****\n");
+
+                    //send server the round is ended
                     client.sendBoolean(endRound = true);
+
+                    //calculate and send score to server
                     calculateScore();
-                    System.out.println("sending score, your current score is " + playerScore);
                     client.sendInt(playerScore);
-                    System.out.println("Finish sending score.\n");
+
+                    //receive and print scores
+                    int numPlayer = client.receiveInt();
+                    for (int i = 0; i < numPlayer; i++) {
+                        int currentPlayerScore = client.receiveInt();
+                        System.out.println("Score of player " + (i+1) + " is " + currentPlayerScore);
+                    }
+
                     break;
                 }
                 client.sendBoolean(endRound = false);
@@ -266,7 +289,7 @@ public class Player implements Serializable {
             if(endGame){
                 Player winner = getPlayer();
                 if(winner.playerId == this.playerId){
-                    System.out.println("You win!");
+                    System.out.println("\n**** You win! ****");
                 }else{
                     System.out.println("The winner is " + winner.getName() + " with score " + winner.getPlayerScore());
                 }
