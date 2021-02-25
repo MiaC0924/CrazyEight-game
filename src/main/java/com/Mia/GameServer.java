@@ -280,16 +280,30 @@ public class GameServer implements Serializable {
                 //check if the game is ended
                 if(game.ifGameEnd(players)) {
                     System.out.println("\n\n-- Game ended --");
-                    Player winner = game.getWinner(players);
+                    int winner = 100;
+                    int temp = 100;
                     game.printFinalResult(players);
 
                     for (int i = 0; i < players.length; i++) {
+                        if(players[i].getPlayerScore() < temp) {
+                            temp = players[i].getPlayerScore();
+                            winner = i;
+                        }
+                    }
+
+                    for (int i = 0; i < players.length; i++) {
                         servers[i].sendBoolean(true); //send signal endGame = true to player
-                        servers[i].sendPlayer(winner);
+
+                        if(i == winner){
+                            servers[i].sendBoolean(true); //youWin = true
+                        }else{
+                            servers[i].sendBoolean(false); //youWin = false
+                            servers[i].sendInt(winner);
+                        }
                     }
                     break;
-                }else{
-                    //if the game is not ended
+
+                }else{ //if the game is not ended
                     //servers[whoPlay].sendBoolean(false); //send signal endGame = false to player
                     for (int i = 0; i < players.length; i++) {
                         servers[i].sendBoolean(false); //send signal endGame = false to player

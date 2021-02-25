@@ -67,10 +67,10 @@ public class Game implements Serializable {
 
     //prints the final score sheet - 打印最终成绩单
     public void printFinalResult(Player[] pl) {
+        System.out.println();
         for (int i = 0; i < pl.length; i++) {
-            System.out.println("The final score of " + pl[i].getName() + " is " + pl[i].getPlayerScore() + " .\n");
+            System.out.println("The final score of " + pl[i].getName() + " is " + pl[i].getPlayerScore());
         }
         System.out.println("==== PLAYER " + getWinner(pl).getName() + " WIN THE GAME ====\n");
     }
-
 }
