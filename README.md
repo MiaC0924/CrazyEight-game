@@ -11,7 +11,7 @@ The 3-4 players connect to a central server.
 The test case is for 4 players.
 The game consists of several rounds, each round concluding by computing the score of each player for that round and updating their game scores accordingly.
 
-You could also refer to video https://www.youtube.com/watch?v=iDQjn3k76Mw for game description of each round.
+You could refer to video:
 
 A round is over as soon as one player plays their last card. Or no one could play card anymore. After the round ended, each player scores the total value of the cards in their hand as follows: 
 - 8s score 50 points
