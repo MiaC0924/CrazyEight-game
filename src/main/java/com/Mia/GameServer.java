@@ -104,7 +104,9 @@ public class GameServer implements Serializable {
 
                 boolean endRound;
                 faceCard = game.takeCard();
+                //faceCard = new Card("K",2);
                 direction = 1;
+                int getTwo = 0;
 
                 //take send 5 cards to each player at the beginning of the round
                 for (int j = 0; j < 5; j++) {
@@ -133,7 +135,7 @@ public class GameServer implements Serializable {
                 /** Whole round while loop */
                 while(true){
                     boolean needCard = false;
-                    int getTwo = 0;
+                    int plySignal = 0;
 
                     System.out.println();
                     System.out.println("Current face card is " + faceCard.toString());
@@ -144,47 +146,63 @@ public class GameServer implements Serializable {
                         servers[whoPlay].sendBoolean(true);   //send playSignal to player
                         servers[whoPlay].sendCard(faceCard); //send face card to player
 
-                        //if face card is 2, take 2 card if possible
+                        boolean couldBreakByHandle2 = false;
+
+                        /**if face card is 2, player play 2/4 cards if possible*/
                         if(faceCard.getRank() == 2){
+                            int available = servers[whoPlay].receiveInt();
                             ++getTwo;
-                            if(game.getNumOfCard() >= 4 && getTwo == 2 && players[prvPlay].canPlay){
-                                takeSignal = 4;
+
+                            if(getTwo == 1 && available >= 2){
+                                //first 2, and player can play 2 cards immediately
+                                plySignal = 2;
+                                servers[whoPlay].sendInt(plySignal);
+                                Card temp1 = servers[whoPlay].receiveCard();
+                                Card temp2 = servers[whoPlay].receiveCard();
+                                System.out.println("Player "+(whoPlay+1)+" plays two cards ["+temp1.toString()+"] and ["+temp2.toString()+"]");
+                                faceCard = temp2;
+                                if(faceCard.getRank() != 2) getTwo = 0;
+
+                                couldBreakByHandle2 = true;
+                            }else if(getTwo == 2 && available >= 4){
+                                //second 2, and player can play 4 cards immediately
+                                plySignal = 4;
+                                servers[whoPlay].sendInt(plySignal);
+                                Card temp1 = servers[whoPlay].receiveCard();
+                                Card temp2 = servers[whoPlay].receiveCard();
+                                Card temp3 = servers[whoPlay].receiveCard();
+                                Card temp4 = servers[whoPlay].receiveCard();
+                                System.out.println("Player "+(whoPlay+1)+" plays four cards ["+temp1.toString()+"] and ["
+                                        +temp2.toString()+"]"+"] and ["+temp3.toString()+"]"+"] and ["+temp4.toString()+"]");
+                                faceCard = temp4;
                                 getTwo = 0;
-                            }else if(game.getNumOfCard() < 4 && getTwo == 2 && players[prvPlay].canPlay){
-                                System.out.println("Remain " + game.getNumOfCard() + " cards in deck");
-                                takeSignal = game.getNumOfCard();
+
+                                couldBreakByHandle2 = true;
+                            }else if(getTwo == 1 && available < 2){
+                                //first 2, and player can NOT play 2 cards, take 2 cards
+                                plySignal = 22;
+                                servers[whoPlay].sendInt(plySignal);
+                                System.out.println("Player don't have enough valid card to play, send 2 card.");
+                                for (int i = 0; i < 2; i++) {
+                                    servers[whoPlay].sendCard(game.takeCard());
+                                }
+                            }else if(getTwo == 2 && available < 4){
+                                //second 2, and player can NOT play 4 cards, take 4 cards
+                                plySignal = 44;
+                                servers[whoPlay].sendInt(plySignal);
+                                System.out.println("Player don't have enough valid card to play, send 4 card.");
+                                for (int i = 0; i < 4; i++) {
+                                    servers[whoPlay].sendCard(game.takeCard());
+                                }
                                 getTwo = 0;
-                            }else if(game.getNumOfCard() >= 2) {
-                                takeSignal = 2;
-                            }else if(game.getNumOfCard() == 1){
-                                System.out.println("Remain " + game.getNumOfCard() + " cards in deck");
-                                takeSignal = 1;
                             }
+
+                            servers[whoPlay].sendBoolean(couldBreakByHandle2);
                         }
 
-                        servers[whoPlay].sendInt(takeSignal);  //send signal to player about# of card take
+                        if (couldBreakByHandle2) break;
 
-                        //send card after get face card = 2
-                        if(takeSignal == 4) {
-                            for (int i = 0; i < 4; i++) {
-                                servers[whoPlay].sendCard(game.takeCard());
-                            }
-                            takeSignal = 0;
-                        }else if(takeSignal == 3){
-                            for (int i = 0; i < 3; i++) {
-                                servers[whoPlay].sendCard(game.takeCard());
-                            }
-                            takeSignal = 0;
-                        }else if(takeSignal == 2){
-                            for (int i = 0; i < 2; i++) {
-                                servers[whoPlay].sendCard(game.takeCard());
-                            }
-                            takeSignal = 0;
-                        }else if(takeSignal == 1){
-                            servers[whoPlay].sendCard(game.takeCard());
-                            takeSignal = 0;
-                        }
-
+                        /**if doesn't end by 2*/
                         //receive card from player, check if player could play
                         //if no, the receive card = null
                         //if need card, deal a card to player

@@ -8,17 +8,13 @@ import java.io.Serializable;
 
 public class Game implements Serializable {
     private static final long serialVersionUID = 1L;
-    private CardDeck tableCards;
+    CardDeck tableCards;
     //private TesterDeck testerDeck;
 
     //ctor
     public Game(){
         tableCards = new CardDeck();
         tableCards.sureBegin();
-
-        /**for tester grid case*/
-//        testerDeck = new TesterDeck();
-//        testerDeck.test1();
     }
 
     //setter - for test case

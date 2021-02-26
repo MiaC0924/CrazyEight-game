@@ -62,6 +62,29 @@ public class Player implements Serializable {
         return null;
     }
 
+    public Card playCard2(Card face) {
+        Scanner myObj = new Scanner(System.in);
+        boolean valid = false;
+        int selection = -1;
+
+        if(canPlay(face)){
+            //ask player to play a card
+            while (valid == false) {
+                System.out.println("Please select a hand card, enter index 1/2/3/...: ");
+                printHandCards();
+
+                selection = myObj.nextInt();
+                if(selection == 0) return null;
+
+                valid = validInputForce(selection-1, face);
+            }
+            return handCards.playSelectedCard(selection-1);
+        }
+
+        System.out.println("You don't have valid card to play");
+        return null;
+    }
+
     //ask player to select a suit
     public String selectSuit(){
         char c;
@@ -87,6 +110,17 @@ public class Player implements Serializable {
     //helper - check if the input is valid selection
     private boolean validInput(int i, Card face){
         if(i < -1 || i >= handCards.getSize()){
+            System.out.println("The index is invalid");
+            return false;
+        }else if(!handCards.cards.get(i).match(face)){
+            System.out.println("The selected card does not match");
+            return false;
+        }
+        return true;
+    }
+
+    private boolean validInputForce(int i, Card face){
+        if(i < 0 || i >= handCards.getSize()){
             System.out.println("The index is invalid");
             return false;
         }else if(!handCards.cards.get(i).match(face)){
@@ -131,6 +165,8 @@ public class Player implements Serializable {
 
         /** round loop */
         while (true) {
+            boolean skip2 = false;
+
             //take base 5 cards then print on terminal
             System.out.println("\n\n-------------------- NEW ROUND --------------------");
             System.out.println("Taking 5 hand cards..");
@@ -141,9 +177,9 @@ public class Player implements Serializable {
 
             /** term loop */
             while (true) {
-                //could add an signal to indicated if the round is ended
-
                 playSignal = client.receiveBoolean();
+
+                //round end by other player
                 if (playSignal == false) {
                     System.out.println("\nThis round is ended!");
 
@@ -167,45 +203,80 @@ public class Player implements Serializable {
                     break;
                 }
 
+                //ask to play
                 if (playSignal == true) {
                     //get face card
                     Card faceCard = client.receiveCard();
-
-                    //if face card is 2, next player may take 2 or 4 cards
-                    int takeSignal = client.receiveInt(); //signal to take card
-                    if (takeSignal == 4) {
-                        System.out.println();
-                        System.out.println("** Face card is [" + faceCard.toString() + "], take four cards");
-                        for (int i = 0; i < 4; i++) {
-                            takeCard(client.receiveCard());
-                        }
-                    } else if (takeSignal == 3) {
-                        System.out.println();
-                        System.out.println("** Face card is [" + faceCard.toString() + "], take cards in deck");
-                        for (int i = 0; i < 3; i++) {
-                            takeCard(client.receiveCard());
-                        }
-                    } else if (takeSignal == 2) {
-                        System.out.println();
-                        System.out.println("** Face card is [" + faceCard.toString() + "], take two cards");
-                        for (int i = 0; i < 2; i++) {
-                            takeCard(client.receiveCard());
-                        }
-                    } else if (takeSignal == 1) {
-                        System.out.println("** Take a card");
-                        takeCard(client.receiveCard());
-                    }
 
                     /** loop for play or take card, max 3 attempt */
                     int attempt = 1;
                     boolean playerRound = true;
                     boolean taken = false;
                     Card lastTake = null;
+                    boolean couldBreakByHandle2 = false;
 
                     while (playerRound) {
                         System.out.println();
                         System.out.println("It's your turn. Current face card is [" + faceCard.toString() + "]");
 
+                        /**if face card is 2, player play 2/4 cards if possible*/
+                        if(faceCard.getRank() == 2 && skip2 == false){
+                            int available = 0;
+                            skip2 = true;
+
+                            for (int i = 0; i < handCards.getSize(); i++) {
+                                if(handCards.cards.get(i).match(faceCard))
+                                    ++available;
+                            }
+                            client.sendInt(available);
+
+                            int plySignal = client.receiveInt();
+
+                            if (plySignal == 2){
+                                //first 2, and player can play 2 cards immediately
+                                System.out.println("You have 2 available cards");
+                                Card temp1 = playCard2(faceCard);
+                                client.sendCard(temp1);
+                                System.out.println("Please select one more available card");
+                                Card temp2 = playCard2(faceCard);
+                                client.sendCard(temp2);
+                            }else if (plySignal == 4){
+                                //second 2, and player can play 4 cards immediately
+                                System.out.println("You have 4 available cards");
+                                Card temp1 = playCard2(faceCard);
+                                client.sendCard(temp1);
+                                System.out.println("Please select the second available card");
+                                Card temp2 = playCard2(faceCard);
+                                client.sendCard(temp2);
+                                System.out.println("Please select the third available card");
+                                Card temp3 = playCard2(faceCard);
+                                client.sendCard(temp3);
+                                System.out.println("Please select the fourth available card");
+                                Card temp4 = playCard2(faceCard);
+                                client.sendCard(temp4);
+                            }else if (plySignal == 22){
+                                System.out.println();
+                                System.out.println("** Face card is [" + faceCard.toString() + "], " +
+                                        "you don't have two available cards, take two cards");
+                                for (int i = 0; i < 2; i++) {
+                                    takeCard(client.receiveCard());
+                                }
+                                printHandCards();
+                            }else if (plySignal == 44){
+                                System.out.println();
+                                System.out.println("** Face card is [" + faceCard.toString() + "], " +
+                                        "you don't have four available cards, take four cards");
+                                for (int i = 0; i < 4; i++) {
+                                    takeCard(client.receiveCard());
+                                }
+                                printHandCards();
+                            }
+                            couldBreakByHandle2 = client.receiveBoolean();
+                        }
+
+                        if(couldBreakByHandle2) break;
+
+                        /**if doesn't end by 2*/
                         if(attempt == 1){
                             Card temp = playCard(faceCard);
 
@@ -237,7 +308,7 @@ public class Player implements Serializable {
                                 takeCard(lastTake);
                                 ++attempt;
                             }
-                        }else if(attempt > 1 && attempt < 4){
+                        }else if(attempt > 1 && attempt < 5){
                             if(lastTake != null && lastTake.match(faceCard)){
                                 printHandCards();
                                 System.out.println("Last taken card [" + lastTake.toString() + "] match face card, must play it.");
@@ -264,7 +335,11 @@ public class Player implements Serializable {
 
                                 playerRound = false;
                             }else{
-                                System.out.println("Taken card doesn't match the face card. Take a card from card deck");
+                                if(lastTake != null) {
+                                    System.out.println("Taken card [" + lastTake.toString() + "] doesn't match the face card. Take a card from card deck");
+                                }else{
+                                    System.out.println("Table card deck empty");
+                                }
                                 client.sendBoolean(needCard = true);
                                 lastTake = client.receiveCard();
                                 takeCard(lastTake);
