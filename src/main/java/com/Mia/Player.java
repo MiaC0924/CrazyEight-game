@@ -165,6 +165,8 @@ public class Player implements Serializable {
 
         /** round loop */
         while (true) {
+            boolean skip2 = false;
+
             //take base 5 cards then print on terminal
             System.out.println("\n\n-------------------- NEW ROUND --------------------");
             System.out.println("Taking 5 hand cards..");
@@ -218,8 +220,9 @@ public class Player implements Serializable {
                         System.out.println("It's your turn. Current face card is [" + faceCard.toString() + "]");
 
                         /**if face card is 2, player play 2/4 cards if possible*/
-                        if(faceCard.getRank() == 2){
+                        if(faceCard.getRank() == 2 && skip2 == false){
                             int available = 0;
+                            skip2 = true;
 
                             for (int i = 0; i < handCards.getSize(); i++) {
                                 if(handCards.cards.get(i).match(faceCard))
